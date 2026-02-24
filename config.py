@@ -1,5 +1,5 @@
 """
-Central config – adjust once, reuse everywhere.
+Central config
 """
 from pathlib import Path
 
