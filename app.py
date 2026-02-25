@@ -4,19 +4,46 @@ import plotly.express as px
 from chromadb.utils import embedding_functions as ef
 from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
-from config import COLLECTION, LOCAL_LLM, TOP_K, EMBED_MODEL, CHROMA_DIR, SYSTEM_PROMPT, APP_TITLE
+from config import COLLECTION, LOCAL_LLM, TOP_K, EMBED_MODEL, CHROMA_DIR, APP_TITLE
+from huggingface_hub import login
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
 
-# this is base folder
+# # this is base folder
+# @st.cache_resource(show_spinner=False)
+# def load_local_model():
+#     tokenizer = AutoTokenizer.from_pretrained(LOCAL_LLM)
+#     model = AutoModelForCausalLM.from_pretrained(
+#         LOCAL_LLM,
+#         dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
+#         device_map="auto"
+#     )
+#     return tokenizer, model
+
+# using hf token to load private model from hub
 @st.cache_resource(show_spinner=False)
 def load_local_model():
-    tokenizer = AutoTokenizer.from_pretrained(LOCAL_LLM)
+    hf_token = os.getenv("HF_TOKEN")
+    if hf_token:
+        os.environ["HUGGINGFACE_HUB_TOKEN"] = hf_token
+
+    tokenizer = AutoTokenizer.from_pretrained(
+        LOCAL_LLM,
+        token=hf_token
+    )
     model = AutoModelForCausalLM.from_pretrained(
         LOCAL_LLM,
         dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
-        device_map="auto"
+        device_map="auto",
+        token=hf_token
+
     )
     return tokenizer, model
+
+
+
 
 
 tokenizer, model = load_local_model()
@@ -49,31 +76,39 @@ st.title(APP_TITLE)
 if "history" not in st.session_state:
     st.session_state.history = []
 
-st.write("Model loaded:", "tokenizer" in globals())
+# st.write("Model loaded:", "tokenizer" in globals())
 
 question = st.text_input("Ask a question about the documents:")
 
 collection = get_collection()
 
 if st.button("Ask") and question:
-    st.write("Checkpoint A: Button pressed")
 
     # Retrieve relevant chunks
     res = collection.query(query_texts=[question], n_results=TOP_K)
-    st.write("Checkpoint B: Chroma query done")
 
     chunks = list(zip(res["documents"][0], res["metadatas"][0], res["distances"][0]))
-    st.write("Checkpoint C: Chunks zipped")
 
     # Build context
     context = "\n\n---\n\n".join(c[0] for c in chunks)
-    prompt = (
-        f"{SYSTEM_PROMPT}\n\nContext:\n{context}\n\n"
-        f"User question: {question}\nAnswer:"
-    )
-    st.write("Checkpoint D: Prompt built")
+    
+    st.markdown("Please be patient, this model is running locally and may take a while to respond :/")
+    messages = [
+    {"role": "system", "content": "Answer using ONLY the context. If not in context, be unhinged and say 'I dunno'. Do not add extra details. Do not speculate. Do not invent cases or examples."},
+    {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {question}"}
+]
+
+    prompt = tokenizer.apply_chat_template(messages, tokenize=False)
+
     reply = local_llm(prompt)
-    st.write("Checkpoint E: LLM returned")
+    reply = reply.split("Answer:")[-1].strip()
+    st.markdown(f"### Answer\n{reply}")
+    # st.write(reply)
+    st.session_state.history.append({
+        "q": question,
+        "a": reply,
+        "chunks": chunks
+    })    
 
 
 

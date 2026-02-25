@@ -12,7 +12,7 @@ def tokenize(text: str) -> List[int]:
 def count_tokens(text: str) -> int:
     return len(tokenize(text))
 
-def hard_chunk(text: str, size: int = 500, overlap: int = 50):
+def hard_chunk(text: str, size: int = CHUNK_TOKENS, overlap: int = CHUNK_OVERLAP):
     chunks = []
     start = 0
 
