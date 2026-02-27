@@ -21,6 +21,8 @@ HF_TOKEN = your_api_key
 ```
 
 ## Running the App
-run the app.py file to start streamlit using the command: *streamlit run app.py*
+run the app.py file to start streamlit using the command: 
+
+```streamlit run app.py```
 
 
