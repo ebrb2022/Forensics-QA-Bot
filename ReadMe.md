@@ -16,7 +16,8 @@ You can add more documents to the "sources" folder and run ingest.py to add them
 pip install -r requirements.txt
 ```
 2. Create .env file and add your Hugging Face API key:
-```HF_TOKEN = your_api_key
+```
+HF_TOKEN = your_api_key
 ```
 
 ## Running the App
