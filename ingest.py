@@ -1,25 +1,15 @@
-# ingest.py  – This script is used to ingest documents into a Chroma database.
-# It reads the documents, splits them into chunks, and adds them to the database.
-# It also handles any OpenAI errors that may occur during the process.
-# It uses the OpenAI API for embedding and Chroma for storing the chunks.
 from pathlib import Path
 import os
 from dotenv import load_dotenv
-from huggingface_hub import InferenceClient
 import chromadb
 import chromadb.utils.embedding_functions as ef
-from chromadb.errors import NotFoundError
 from utils import load_pdf, load_text, smart_split, hard_chunk
 from config import CHROMA_DIR, COLLECTION, EMBED_MODEL
 
 # as usual, load .env file
 load_dotenv()
 
-def safe_hf():
-    key = os.getenv("HF_TOKEN")
-    if not key:
-        raise SystemExit("HF_TOKEN not found (env var or .env).")
-    return InferenceClient(token=key)
+hf = os.getenv("HF_TOKEN")
 
 # base folder is where this file lives
 BASE = Path(__file__).parent
@@ -42,6 +32,7 @@ def read_text(path: Path) -> str:
 
 
 def build_chunks():
+    """ read each doc, split into sections, create overlapping chunks, return text metadata dicts """
     chunks = []
     for path, kind in DOCS:
         raw = read_text(path)
@@ -63,18 +54,16 @@ def main() -> None:
         model_name= EMBED_MODEL
     )
 
-
-    # try to get collection, create if not found
     try:
-        collection = chroma_client.get_collection(
-            COLLECTION, embedding_function=hf_ef
-        )
-        print("Collection exists – will add new chunks.")
-    except NotFoundError: # then create new collection
-        collection = chroma_client.create_collection(
-            COLLECTION, embedding_function=hf_ef
-        )
-        print("Created new collection.")
+        chroma_client.delete_collection(COLLECTION)
+        print("Deleted old collection.")
+    except:
+        pass
+    collection = chroma_client.create_collection(
+        COLLECTION, embedding_function=hf_ef
+    )
+
+    print("Created new collection.")
 
     data = build_chunks()
     print(f"Ingesting {len(data)} chunks …")
@@ -83,7 +72,7 @@ def main() -> None:
         documents=[d["text"]    for d in data],
         metadatas=[d["metadata"] for d in data],
     )
-    print("Done.  You can now run:  streamlit run app.py")
+    print("Now you must run:  streamlit run app.py")
 
 if __name__ == "__main__":
     try:

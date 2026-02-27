@@ -2,54 +2,25 @@ import streamlit as st
 import chromadb
 import plotly.express as px
 from chromadb.utils import embedding_functions as ef
-from transformers import AutoTokenizer, AutoModelForCausalLM
-import torch
 from config import COLLECTION, LOCAL_LLM, TOP_K, EMBED_MODEL, CHROMA_DIR, APP_TITLE
-from huggingface_hub import login
+from huggingface_hub import InferenceClient
 import os
 from dotenv import load_dotenv
 load_dotenv()
 
+# instead of loading in local model, using api to access model since my pc doesn't have enough cpu/gpu to work it
 
-# # this is base folder
-# @st.cache_resource(show_spinner=False)
-# def load_local_model():
-#     tokenizer = AutoTokenizer.from_pretrained(LOCAL_LLM)
-#     model = AutoModelForCausalLM.from_pretrained(
-#         LOCAL_LLM,
-#         dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
-#         device_map="auto"
-#     )
-#     return tokenizer, model
-
-# using hf token to load private model from hub
-@st.cache_resource(show_spinner=False)
-def load_local_model():
-    hf_token = os.getenv("HF_TOKEN")
-    if hf_token:
-        os.environ["HUGGINGFACE_HUB_TOKEN"] = hf_token
-
-    tokenizer = AutoTokenizer.from_pretrained(
-        LOCAL_LLM,
-        token=hf_token
-    )
-    model = AutoModelForCausalLM.from_pretrained(
-        LOCAL_LLM,
-        dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
-        device_map="auto",
-        token=hf_token
-
-    )
-    return tokenizer, model
-
-
-
-
-
-tokenizer, model = load_local_model()
+hf = os.getenv("HF_TOKEN")
 
 @st.cache_resource(show_spinner=False)
+def get_inference_client():
+    return InferenceClient(token=hf)
+
+@st.cache_resource(show_spinner="Loading collection...")
 def get_collection():
+    """
+    gets the chroma collection with embedding funct; cached so it doesn't reload every time
+    """
     embedding_fn = ef.SentenceTransformerEmbeddingFunction(
         model_name=EMBED_MODEL
     )
@@ -57,17 +28,15 @@ def get_collection():
     return client.get_collection(COLLECTION, embedding_function=embedding_fn)
 
 
-def local_llm(prompt):
-    inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
-
-    outputs = model.generate(
-        **inputs,
-        max_new_tokens=512,
-        do_sample=True,
-        temperature=0.7,
+def query_llm(messages):
+    """ queries and returns response from the model, returning content of first choice"""
+    client = get_inference_client()
+    response = client.chat_completion(
+        model=LOCAL_LLM, 
+        messages=messages,
+        max_tokens=512
     )
-
-    return tokenizer.decode(outputs[0], skip_special_tokens=True)
+    return response.choices[0].message.content
 
 
 st.set_page_config(page_title=APP_TITLE, layout="wide")
@@ -78,30 +47,29 @@ if "history" not in st.session_state:
 
 # st.write("Model loaded:", "tokenizer" in globals())
 
-question = st.text_input("Ask a question about the documents:")
+
 
 collection = get_collection()
 
-if st.button("Ask") and question:
+with st.form("qa_form"):
+    question = st.text_input("Ask a question about the documents:")
+    submitted = st.form_submit_button("Ask")
 
-    # Retrieve relevant chunks
+if submitted and question:
+    # query collection for relevant chunks
     res = collection.query(query_texts=[question], n_results=TOP_K)
-
     chunks = list(zip(res["documents"][0], res["metadatas"][0], res["distances"][0]))
-
-    # Build context
     context = "\n\n---\n\n".join(c[0] for c in chunks)
     
-    st.markdown("Please be patient, this model is running locally and may take a while to respond :/")
+    # gotta make that prompt, even if it's wacked up (only if it's out of context)
     messages = [
-    {"role": "system", "content": "Answer using ONLY the context. If not in context, be unhinged and say 'I dunno'. Do not add extra details. Do not speculate. Do not invent cases or examples."},
+    {"role": "system", "content": "Answer using the context with enough detail and explanation. If not in context, be as unhinged as possible, using Gen Alpha slang; you can also add emojis or asciis that fit the brainrot feel. Do not add extra details. Do not speculate. Do not invent examples."},
     {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {question}"}
-]
+    ]
 
-    prompt = tokenizer.apply_chat_template(messages, tokenize=False)
+    reply = query_llm(messages)
+    reply = reply.strip()
 
-    reply = local_llm(prompt)
-    reply = reply.split("Answer:")[-1].strip()
     st.markdown(f"### Answer\n{reply}")
     # st.write(reply)
     st.session_state.history.append({
@@ -114,13 +82,11 @@ if st.button("Ask") and question:
 
 # this shows the history of questions and answers + sources
 for idx, item in enumerate(reversed(st.session_state.history)):
-    # extra credit: creating distance vizualization
-    # added button to show/hide
+    # added data viz to show the distances of retrieved chunks (originally for extra credit)
     if st.button("Show Distances Visualization", key=f"dist_viz_{idx}"):
         texts = [chunk[0] for chunk in item["chunks"]]
         metadatas = [chunk[1] for chunk in item["chunks"]]
         distances = [chunk[2] for chunk in item["chunks"]]
-
         data = []
         for i, (text, meta, dist) in enumerate(zip(texts, metadatas, distances)):
             data.append({
@@ -138,7 +104,7 @@ for idx, item in enumerate(reversed(st.session_state.history)):
             title="Similarity Distance of Retrieved Chunks"
         )
         fig.update_traces(marker=dict(size=12, opacity=0.8, line=dict(width=1, color='SteelBlue')))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     st.markdown(f"**Q:** {item['q']}")
     st.markdown(f"**A:** {item['a']}")

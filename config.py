@@ -12,13 +12,13 @@ EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 EMBED_DIM = 384
 
 # chunking
-CHUNK_TOKENS = 500
-CHUNK_OVERLAP = 50
-LOCAL_LLM = "microsoft/Phi-3-mini-4k-instruct"
+CHUNK_TOKENS = 1000
+CHUNK_OVERLAP = 100
 
-# num of chunks to return each time (for RAG)
-TOP_K = 4 
+# the llm for answering questions
+LOCAL_LLM = "meta-llama/Llama-3.2-3B-Instruct"
 
-# Streamlit
+TOP_K = 7
+
 APP_TITLE = "Forensics Q&A (RAG)"
 
