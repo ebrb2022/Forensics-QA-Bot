@@ -1,13 +1,24 @@
-# fatima-bangiyev-project-3
+# Forensics Q&A Bot
 
-## Contributions
-Muskan Fatima: 
-- implemented the LLM answer generator and ui in streamlit app, implemented utils.py which has helper functions for ingest.py, included config.py for configs, implemented functions for ingest.py, and fixed the prompt for answer generation.
+A bot that answers questions about forensics from relevent documents using Retrieval Augmented Generation (RAG). 
 
-Elizabeth Bangiyev:
-- Debugged functions that parsed, chunked, and embeded the PDFs in ingest.py, added ReadMe and test cases file, and included plotly distance viz for chunks. 
+Model used: Meta Llama 3.2 3B Instruct
 
-## Instructions
+## Link to Streamlit App
+<!-- Go [here](https://ebrb2022-ai-job-assistant-app-r3mair.streamlit.app/) to access the AI Job Assistant Streamlit app. -->
+## Note
+You can add more documents to the "sources" folder and run ingest.py to add them to database. I would recommend uncommenting the docs that have already been ingested to avoid rerunning them.
+
+## Installation
+1. Create a virtual environment and install the required packages via requirements.txt:
+```
+pip install -r requirements.txt
+```
+2. Create .env file and add your Hugging Face API key:
+```HF_TOKEN = your_api_key
+```
+
+## Running the App
 run the app.py file to start streamlit using the command: *streamlit run app.py*
 
 

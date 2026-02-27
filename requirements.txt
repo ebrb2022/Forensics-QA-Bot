@@ -1,0 +1,7 @@
+streamlit
+chromadb
+plotly
+huggingface_hub
+sentence-transformers
+python-dotenv
+pdfplumber
