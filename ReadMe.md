@@ -5,7 +5,8 @@ A bot that answers questions about forensics from relevent documents using Retri
 Model used: Meta Llama 3.2 3B Instruct
 
 ## Link to Streamlit App
-<!-- Go [here](https://ebrb2022-ai-job-assistant-app-r3mair.streamlit.app/) to access the AI Job Assistant Streamlit app. -->
+Go [here](https://ebrb2022-forensics-qa-bot-app-i2vwsw.streamlit.app/) to access the QA bot app.
+
 ## Note
 You can add more documents to the "sources" folder and run ingest.py to add them to database. I would recommend uncommenting the docs that have already been ingested to avoid rerunning them.
 
