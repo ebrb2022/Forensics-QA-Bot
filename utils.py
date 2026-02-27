@@ -1,5 +1,5 @@
 import re
-from typing import List, Dict
+from typing import List
 from config import CHUNK_TOKENS, CHUNK_OVERLAP
 import pdfplumber, pathlib
 
